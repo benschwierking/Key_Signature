@@ -74,19 +74,34 @@ def build(out_dir: str | Path, n_tracks: int = 480, seed: int = 0, shuffle_label
 
 
 def synthetic_extract_features(path) -> np.ndarray:
-    """STAND-IN extractor (not keyclf): librosa chroma -> first/last one-hot + histogram."""
-    import librosa
+    """STAND-IN FFT pitch summary for exercising the judge's timing path only.
 
-    y, sr = librosa.load(path, sr=22050, mono=True)
-    y, _ = librosa.effects.trim(y)
-    # The synthetic probe is generated at exact equal-tempered frequencies, so
-    # automatic tuning estimation is unnecessary and unstable on some numba
-    # builds used by local macOS/arm64 development environments.
-    c = librosa.feature.chroma_cqt(y=y, sr=sr, tuning=0.0)
-    first = np.eye(12)[c[:, :10].sum(1).argmax()]
-    last = np.eye(12)[c[:, -10:].sum(1).argmax()]
-    h = c.sum(1)
-    return np.concatenate([first, last, h / h.sum()])
+    FFmpeg and NumPy avoid coupling a judge self-test to librosa/numba's first
+    compilation on a fresh runner. Real acceptance still times keyclf's actual
+    extractor with the unchanged strict ten-second threshold and no warm-up.
+    """
+    import subprocess
+
+    decoded = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", "22050", "-"],
+        check=True, capture_output=True,
+    )
+    y = np.frombuffer(decoded.stdout, dtype="<f4")
+
+    def pitch_histogram(samples):
+        samples = np.asarray(samples, dtype=float)
+        if not len(samples):
+            return np.ones(12) / 12
+        frequencies = np.fft.rfftfreq(len(samples), 1 / 22050)
+        spectrum = np.abs(np.fft.rfft(samples * np.hanning(len(samples))))
+        mask = (frequencies >= 40) & (frequencies <= 5000)
+        pitch = np.rint(69 + 12 * np.log2(frequencies[mask] / 440)).astype(int) % 12
+        histogram = np.bincount(pitch, weights=spectrum[mask], minlength=12)
+        return histogram / histogram.sum() if histogram.sum() else np.ones(12) / 12
+
+    first = np.eye(12)[pitch_histogram(y[:4096]).argmax()]
+    last = np.eye(12)[pitch_histogram(y[-4096:]).argmax()]
+    return np.concatenate([first, last, pitch_histogram(y)])
 
 
 if __name__ == "__main__":

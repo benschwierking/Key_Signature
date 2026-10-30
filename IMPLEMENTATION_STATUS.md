@@ -37,10 +37,12 @@ This is the durable resume ledger for the key-signature classifier.
 - Active operation: requested accuracy research and technical PowerPoint
 - Last successful action: audit found 511 minor / 93 major annotations; 0/15 major test tracks correct
 - Runtime recovery: Desktop cache and virtualenv contain macOS `dataless` cloud placeholders. A new local runtime under `/private/tmp/keyclf-research.1I9aUa` avoids stalled imports. The earlier attribution solely to policy-service contention was not established.
-- Research checkpoint: 200/604 new feature rows completed without failures; full extraction remains active with two workers.
+- Research checkpoint: 420/604 new feature rows completed without failures; full extraction remains active with two workers.
 - Verification: fresh strict run passed 128 tests with one optional criterion skip. Original gate replay reproduced 46.15% exact and 69.23% top-three with C3-C7 passing. A subsequent raw-label audit change passed targeted tests.
 - Initial development CV: original reference forest 46.98% exact; transposition-augmented histogram forest 55.36%. No research test inference has occurred.
 - Additional-data metadata: 1,349 single-key candidates (429 major / 920 minor), no exact ID or MD5 overlaps, 137 ambiguous/unknown entries recorded separately. No additional audio collected.
+- Source milestone: `c6e6d62` pushed. GitHub now collects the suite successfully, but its synthetic stand-in hit first-time numba compilation (16.4 seconds). The stand-in now uses FFT/FFmpeg to test timing plumbing; real C3 still times the actual extractor with the unchanged strict limit and no warm-up. The updated smoke/criteria tests passed 18 tests with one optional skip.
+- Upload verification: synthetic WAV, MP3, MP4 decoding and Streamlit top-three/relative-key rendering passed all four smoke tests. The latest strict source run passed 131 tests with one optional skip before this additional smoke coverage.
 - Environment: Python 3.11 virtualenv installed; ffmpeg available
 - Committed source milestones: `12e4b28` (v1 build) and `6291ad3` (acceptance diagnostics and handoff)
 - Blockers:

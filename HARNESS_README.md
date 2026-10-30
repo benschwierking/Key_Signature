@@ -10,6 +10,12 @@ Until `keyclf/` exists, the implementation tests **skip** with a reason that sta
 with `IMPLEMENTATION MISSING: cannot import keyclf.<module> ...`. Set `KEYCLF_REQUIRE_IMPL=1`
 to turn those skips into **failures**. CI sets it.
 
+The judge's synthetic smoke test uses an explicitly separate FFmpeg/NumPy FFT
+stand-in to exercise timing and exit codes without first-time numba compilation.
+Real acceptance measures `keyclf.features:extract_features` with the unchanged
+strict `< 10.0 s` maximum and no warm-up. Synthetic fixture results never count
+as evidence about the real classifier.
+
 ## Layout
 ```
 tests/conftest.py              markers, REPO_ROOT, require_impl skip/fail policy, synthetic-tone helpers

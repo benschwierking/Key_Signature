@@ -10,6 +10,7 @@ if (!inputPath || !workspaceDir || !finalPath) throw new Error('Usage: build_tec
 const modules = process.env.KEYCLF_ARTIFACT_MODULES;
 const skill = process.env.KEYCLF_PRESENTATION_SKILL;
 const python = process.env.KEYCLF_RUNTIME_PYTHON;
+const buildDir=path.join(workspaceDir,'.deck-build');
 if (!modules || !skill || !python) throw new Error('Presentation runtime paths are required in KEYCLF_* environment variables');
 const require = createRequire(path.join(modules, '__keyclf_runtime__.cjs'));
 const { Presentation, PresentationFile } = await import(pathToFileURL(require.resolve('@oai/artifact-tool')).href);
@@ -198,15 +199,15 @@ if(d.additional_data.mode_counts){
  text(s,'These recordings have not entered the current model. The next collection stage prioritizes verified major keys.',56,600,1140,65,26,C.navy);
 }
 
-await fs.mkdir(workspaceDir,{recursive:true});
-const previews=path.join(workspaceDir,'previews');await fs.mkdir(previews,{recursive:true});
+await fs.mkdir(buildDir,{recursive:true});
+const previews=path.join(buildDir,'previews');await fs.mkdir(previews,{recursive:true});
 for(let i=0;i<P.slides.items.length;i++){
  const png=await P.export({slide:P.slides.items[i],format:'png',scale:1});
  await fs.writeFile(path.join(previews,`slide-${String(i+1).padStart(2,'0')}.png`),new Uint8Array(await png.arrayBuffer()));
 }
 const montage=await P.export({format:'webp',montage:true});
-await fs.writeFile(path.join(workspaceDir,'montage.webp'),new Uint8Array(await montage.arrayBuffer()));
-const candidatePath=path.join(workspaceDir,'draft.pptx');
+await fs.writeFile(path.join(buildDir,'montage.webp'),new Uint8Array(await montage.arrayBuffer()));
+const candidatePath=path.join(buildDir,'draft.pptx');
 await(await PresentationFile.exportPptx(P)).save(candidatePath);
 await fs.mkdir(path.dirname(finalPath),{recursive:true});
 const result=await finalizePresentation({workspaceDir,candidatePath,finalPath,
@@ -217,5 +218,5 @@ const result=await finalizePresentation({workspaceDir,candidatePath,finalPath,
  requiredNativeTableOwnerSlides:tableOwners,requiredNativeChartOwnerSlides:chartOwners,
  materializeLiteralChartWorkbooks:true,nativeChartTargetApplication:'powerpoint',
  fontPolicy:{basis:'design',families:[font]},verifyArtifactToolImport:true,
- receiptPath:path.join(workspaceDir,'validation.json')});
+ receiptPath:path.join(buildDir,'validation.json')});
 console.log(JSON.stringify({slides:P.slides.items.length,output:finalPath,result}));
