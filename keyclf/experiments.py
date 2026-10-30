@@ -37,6 +37,7 @@ from .research_features import BLOCKS
 from .train import probabilities_24
 
 SEED = 42
+EXPERIMENT_VERSION = "mode-cv-rotation-v2.2"
 
 
 def rotate_training(X: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -60,7 +61,7 @@ def summarize(y: np.ndarray, probability: np.ndarray) -> dict:
     result = {
         "n": len(y), "accuracy": float(accuracy_score(y, prediction)),
         "top3_accuracy": float(np.mean(np.any(ranked == y[:, None], axis=1))),
-        "log_loss": float(log_loss(y, np.clip(probability, 1e-12, 1), labels=np.arange(24))),
+        "log_loss": float(log_loss(y, probability, labels=np.arange(24))),
         "macro_recall_present": float(recall_score(y, prediction, labels=present, average="macro", zero_division=0)),
         "macro_recall_all24": float(recall_score(y, prediction, labels=np.arange(24), average="macro", zero_division=0)),
         "weighted_recall": float(recall_score(y, prediction, average="weighted", zero_division=0)),
@@ -167,7 +168,7 @@ def run_experiments(features: Path, output: Path, finalize: bool = False, refere
     cache_signature = hashlib.sha256(features.read_bytes()).hexdigest()
     for config in candidates(available):
         checkpoint = output / f"candidate_{config['name']}.json"
-        signature = hashlib.sha256(json.dumps({"config": config, "cache": cache_signature, "seed": SEED}, sort_keys=True).encode()).hexdigest()
+        signature = hashlib.sha256(json.dumps({"protocol": EXPERIMENT_VERSION, "config": config, "cache": cache_signature, "seed": SEED}, sort_keys=True).encode()).hexdigest()
         if checkpoint.exists():
             saved = json.loads(checkpoint.read_text())
             if saved.get("signature") == signature:
@@ -199,7 +200,7 @@ def run_experiments(features: Path, output: Path, finalize: bool = False, refere
     # Preregistered ranking: exact accuracy, top three, log loss. Macro recall
     # is reported rather than silently replacing the user's exact-key target.
     winner = max(results, key=lambda r: (r["development_cv"]["accuracy"], r["development_cv"]["top3_accuracy"], -r["development_cv"]["log_loss"]))
-    report = {"seed": SEED, "audit": info,
+    report = {"seed": SEED, "experiment_version": EXPERIMENT_VERSION, "audit": info,
               "environment": {"python": platform.python_version(), **{name: version(name) for name in ("numpy", "scikit-learn", "pandas", "librosa")}},
               "cv": "3 folds stratified by mode, development tracks only",
               "augmentation": "12 pitch-class rotations inside training folds only; mode unchanged",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from keyclf.keys import KEY_NAMES, is_related, parse_key
 
@@ -32,3 +33,13 @@ def test_research_input_preserves_the_display_vector_and_model_order(monkeypatch
     display, selected = prepare_input("unused.wav", {"research_version": "v2.1", "feature_names": ["bass_3", "hist_0"]})
     assert np.array_equal(display, full[:36])
     assert np.array_equal(selected, [51, 24])
+
+
+def test_histogram_only_research_uses_the_fast_v1_extractor(monkeypatch):
+    from keyclf import app, research_features
+
+    monkeypatch.setattr(app, "extract_features", lambda _path, _config: np.arange(36))
+    monkeypatch.setattr(research_features, "extract_research_features", lambda _path: pytest.fail("unused rich extractor called"))
+    display, selected = app.prepare_input("unused.wav", {"research_version": "v2.1", "feature_names": ["hist_0", "hist_11"]})
+    assert np.array_equal(display, np.arange(36))
+    assert np.array_equal(selected, [24, 35])

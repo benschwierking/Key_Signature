@@ -12,6 +12,7 @@ const skill = process.env.KEYCLF_PRESENTATION_SKILL;
 const python = process.env.KEYCLF_RUNTIME_PYTHON;
 const buildDir=path.join(workspaceDir,'.deck-build');
 if (!modules || !skill || !python) throw new Error('Presentation runtime paths are required in KEYCLF_* environment variables');
+process.env.RUNTIME_NODE_MODULES ??= modules;
 const require = createRequire(path.join(modules, '__keyclf_runtime__.cjs'));
 const { Presentation, PresentationFile } = await import(pathToFileURL(require.resolve('@oai/artifact-tool')).href);
 const { applyPresentationChartFont, resolvePresentationFont, finalizePresentation } = await import(pathToFileURL(path.join(skill, 'container_tools/artifact_tool_utils.mjs')).href);
@@ -88,7 +89,7 @@ function scatter(s,points,xField,yField,groupFn,labels,colors,extra={}){
  const s=slide('Dataset and fixed recording splits','Sources: GiantSteps original annotations, research audit.json. The original split IDs remain fixed. All augmentation happens after assigning original recordings to folds.');
  const n=exp.audit.n, c=exp.audit.split_counts;
  table(s,[['Partition','Recordings','Share','Purpose'],['Training',String(c.train),pct(c.train/n),'Original model fitting'],['Validation',String(c.val),pct(c.val/n),'Original model selection'],['Test',String(c.test),pct(c.test/n),'Final fixed benchmark'],['Final refit',String(c.train+c.val),pct((c.train+c.val)/n),'Fit the selected configuration']],[245,185,175,563],{h:345});
- text(s,'Research selection uses three development folds across the 513 training and validation recordings.',56,545,1150,86,27,C.navy);
+ text(s,'Research selection uses three development folds across the 513 training and validation recordings. Percentages rounded.',56,545,1150,86,27,C.navy);
  note(s,'Reference: https://github.com/GiantSteps/giantsteps-key-dataset. All 604 excerpts are from electronic dance music. New research reuses the existing test set as an audit benchmark because its errors have already been examined.');
 }
 // 4: Imbalance.
@@ -124,7 +125,7 @@ function scatter(s,points,xField,yField,groupFn,labels,colors,extra={}){
  const s=slide('Feature experiments on development folds','Source: experiment_results.json. Bars represent pooled out-of-fold results over the same 513 development tracks. Each feature-family bar uses its highest-ranked algorithm, so this chart compares selected configurations rather than isolating only the features.');
  const groups=[...new Set(exp.candidates.map(r=>r.config.group))];
  const best=groups.map(g=>exp.candidates.filter(r=>r.config.group===g).sort((a,b)=>b.development_cv.accuracy-a.development_cv.accuracy)[0]);
- const labels={v1:'V1 features',histogram:'Histogram',harmonic_bass:'Harmonic + bass',persistence:'Persistence',beat_accent:'Beat accent',temporal:'Sections',all_features:'All features'};
+ const labels={v1:'V1 + transpose',histogram:'Histogram',harmonic_bass:'Harmonic + bass',persistence:'Persistence',beat_accent:'Beat accent',temporal:'Sections',all_features:'All features'};
  bar(s,best.map(r=>labels[r.config.group]||r.config.group),[{name:'Exact accuracy',values:best.map(r=>r.development_cv.accuracy),fill:C.blue},{name:'Macro recall',values:best.map(r=>r.development_cv.macro_recall_present),fill:C.teal}]);
  text(s,`Selected: ${selected.config.group.replaceAll('_',' ')} with ${selected.config.algorithm==='forest'?'random forest':'scaled logistic regression'}. CV exact accuracy ${pct(selected.development_cv.accuracy)}.`,56,610,1140,65,25,C.navy);
 }
@@ -132,19 +133,20 @@ function scatter(s,points,xField,yField,groupFn,labels,colors,extra={}){
 {
  const s=slide('Selected research model','Sources: final_test.json, experiment_results.json and research_model.joblib. Feature names and training split IDs are stored with the artifact.');
  const cfg=selected.config;
- table(s,[['Setting','Value'],['Algorithm',cfg.algorithm==='forest'?'Random forest classifier':'StandardScaler + multinomial logistic regression'],['Feature family',cfg.group.replaceAll('_',' ')],['Input dimensions',String(exp.final.feature_names.length)],['Parameters',cfg.algorithm==='forest'?`500 trees, min_samples_leaf ${cfg.leaf}, max_features ${cfg.max_features}`:`C ${cfg.C}, balanced class weights, lbfgs solver`],['Training examples',`${exp.final.fit_recordings} original recordings, ${exp.final.augmented_training_rows} rows after augmentation`],['Random seed','42']],[340,828],{h:435,size:24});
+ table(s,[['Setting','Value'],['Algorithm',cfg.algorithm==='forest'?'Random forest classifier':'StandardScaler + multinomial logistic regression'],['Feature family',cfg.group.replaceAll('_',' ')],['Input dimensions',String(exp.final.feature_names.length)],['Parameters',cfg.algorithm==='forest'?`500 trees, min_samples_leaf ${cfg.leaf}, max_features ${cfg.max_features}`:`C ${cfg.C}, lbfgs solver`],['Class weights',cfg.algorithm==='forest'?'balanced_subsample':'balanced'],['Training examples',`${exp.final.fit_recordings} original recordings, ${exp.final.augmented_training_rows} rows after augmentation`],['Random seed','42']],[340,828],{h:435,size:24});
 }
 // 10: Train versus test.
 {
  const s=slide('Training fit and held-out performance','Sources: original v1 refit artifact and final_test.json. Training figures are resubstitution on 513 original development recordings after fitting. CV predictions are out-of-fold. The fixed test set contains 91 tracks. Training accuracy does not estimate generalization.');
- table(s,[['Metric','Original V1','Research model'],['Training accuracy',pct(d.baseline_fit.accuracy),pct(fit.accuracy)],['Development CV accuracy',pct(d.baseline_cv.accuracy),pct(selected.development_cv.accuracy)],['Test exact accuracy',pct(baseline.accuracy),pct(test.accuracy)],['Test top-three accuracy',pct(baseline.top3_accuracy),pct(test.top3_accuracy)],['Test macro recall',pct(baseline.macro_recall_present),pct(test.macro_recall_present)],['Test weighted recall',pct(baseline.weighted_recall),pct(test.weighted_recall)],['Test log loss',baseline.log_loss.toFixed(3),test.log_loss.toFixed(3)]],[530,319,319],{h:440,size:23});
- text(s,'Targets remain 80% exact and 95% top-three. Macro recall averages the 23 keys present in this test set.',56,620,1140,45,22,C.gray);
+ table(s,[['Metric','Original V1','Research model'],['Training accuracy',pct(d.baseline_fit.accuracy),pct(fit.accuracy)],['Training macro recall',pct(d.baseline_fit.macro_recall_present),pct(fit.macro_recall_present)],['Development CV accuracy',pct(d.baseline_cv.accuracy),pct(selected.development_cv.accuracy)],['Test exact accuracy',pct(baseline.accuracy),pct(test.accuracy)],['Test top-three accuracy',pct(baseline.top3_accuracy),pct(test.top3_accuracy)],['Test macro recall',pct(baseline.macro_recall_present),pct(test.macro_recall_present)],['Test weighted recall',pct(baseline.weighted_recall),pct(test.weighted_recall)],['Test log loss',baseline.log_loss.toFixed(3),test.log_loss.toFixed(3)]],[530,319,319],{h:465,size:23});
+ text(s,'Targets remain 80% exact and 95% top-three. Test macro recall averages the 23 represented keys.',56,644,1140,42,21,C.gray);
+ note(s,'This table recomputes both log losses with sklearn default float64 clipping. The original acceptance report uses EPS=1e-15, yielding 2.337 rather than 2.353 for the original model. This numeric convention does not change accuracy, recall, ranking, or predictions.');
 }
 // 11: Recall meaning.
 {
- const s=slide('Recall measures how often an actual class is recovered','Sources: classification_report fields in final_test.json and original model evaluation. In single-label multiclass classification, weighted recall equals accuracy. Macro recall gives every represented class equal weight.');
+ const s=slide('Recall by key and mode','Sources: classification_report fields in final_test.json and original model evaluation. In single-label multiclass classification, weighted recall equals accuracy. Macro recall gives every represented class equal weight.');
  text(s,'Recall for a key = correct predictions of that key / actual recordings in that key',56,150,1150,85,32,C.blue,true);
- table(s,[['Test subset','Tracks','Original exact recall','Research exact recall'],['Major keys',String(test.major_n),pct(baseline.major_exact_recall),pct(test.major_exact_recall)],['Minor keys',String(test.minor_n),pct(baseline.minor_exact_recall),pct(test.minor_exact_recall)],['Major/minor mode','91',pct(baseline.mode_accuracy),pct(test.mode_accuracy)]],[300,140,364,364],{y:280,h:255,size:24});
+ table(s,[['Test measure','Tracks','Original V1','Research model'],['Major exact recall',String(test.major_n),pct(baseline.major_exact_recall),pct(test.major_exact_recall)],['Minor exact recall',String(test.minor_n),pct(baseline.minor_exact_recall),pct(test.minor_exact_recall)],['Mode accuracy','91',pct(baseline.mode_accuracy),pct(test.mode_accuracy)]],[300,140,364,364],{y:280,h:255,size:24});
  text(s,'Mode accuracy checks major versus minor only. It does not require the correct tonic.',56,585,1140,70,27,C.gray);
 }
 // 12 and 13: Per-class recall.
@@ -187,8 +189,8 @@ for(const mode of ['major','minor']){
  const s=slide('Remaining technical limits','Sources: experiment_results.json, extraction diagnostics and implementation status. No additional external dataset was acquired for this experiment. Novel feature extraction has not yet received the full original C1-C7 acceptance certification.');
  text(s,`Measured test exact accuracy: ${pct(test.accuracy)}. Top-three accuracy: ${pct(test.top3_accuracy)}.`,56,155,1160,60,33,C.blue,true);
  text(s,'The current dataset has few major-key examples and uneven support across tonics. Additional data should contain independently verified major keys.',56,245,1140,105,28);
- text(s,'The extractor estimates beat accents and persistent pitch. Exact note onsets, offsets and bar downbeats remain future experiments.',56,380,1140,100,28);
- text(s,'The original test errors have been examined. A later release needs a fresh blind benchmark and a measured latency gate for the new extractor.',56,515,1140,105,28,C.navy);
+ text(s,'The tested extensions estimate beat accents and persistent pitch. Exact note onsets, offsets and bar downbeats remain future experiments.',56,380,1140,100,28);
+ text(s,d.research_latency?`The selected histogram model and its extraction path took ${d.research_latency.max_s.toFixed(2)} seconds maximum across three 120-second synthetic MP3 runs. A fresh blind benchmark remains necessary.`:'The original test errors have been examined. A later release needs a fresh blind benchmark and a measured latency gate for the new extractor.',56,515,1140,105,28,C.navy);
  note(s,'Research references: https://archives.ismir.net/ismir2021/paper/000004.pdf. Pitch shifting can improve transposition coverage, but it preserves mode and does not replace independent major-key examples.');
 }
 // 19: Concrete additional-data pool.

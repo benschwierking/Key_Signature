@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from keyclf.features import FeatureConfig, extract_features
+from keyclf.features import FeatureConfig, extract_features, feature_names
 from keyclf.keys import KEY_NAMES, is_related
 
 
@@ -44,11 +44,16 @@ def probability_24(estimator, vector: np.ndarray, metadata: dict) -> np.ndarray:
 def prepare_input(path: str | Path, metadata: dict) -> tuple[np.ndarray, np.ndarray]:
     """Return display features and the artifact's correctly ordered model input."""
     if metadata.get("research_version"):
+        requested = metadata["feature_names"]
+        base_names = feature_names()
+        if set(requested) <= set(base_names):
+            base = extract_features(path, FeatureConfig(**metadata.get("feature_config", {})))
+            return base, base[[base_names.index(name) for name in requested]]
         from keyclf.research_features import BLOCKS, extract_research_features
 
         full, _ = extract_research_features(path)
         names = [f"{block}_{pc}" for block in BLOCKS for pc in range(12)]
-        columns = [names.index(name) for name in metadata["feature_names"]]
+        columns = [names.index(name) for name in requested]
         return full[:36], full[columns]
     vector = extract_features(path, FeatureConfig(**metadata.get("feature_config", {})))
     return vector, vector

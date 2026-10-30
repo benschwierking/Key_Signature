@@ -92,6 +92,19 @@ presentation data. `scripts/build_technical_deck.mjs` creates an editable
 PowerPoint using the Codex presentation runtime. Generated caches, models,
 point coordinates, and slides remain under ignored work/report directories.
 
+The completed first research batch selected a 500-tree, transposition-augmented
+histogram random forest. On the unchanged 91-track benchmark, exact accuracy
+increased from 46.2% to 51.6%, top-three accuracy from 69.2% to 71.4%, and macro
+recall over the 23 represented keys from 27.3% to 41.5%. Training accuracy was
+98.8%, so substantial overfitting remains. Richer feature groups did not win
+development selection, and the original 80%/95% acceptance targets are not met.
+This previously examined benchmark is not a fresh blind test.
+
+`scripts/verify_research_model.py` checks a second fixed-configuration refit
+without reselection. `scripts/measure_research_latency.py` times the selected
+model's actual upload extraction path without warm-up. The status ledger records
+results and local artifact paths, including the 19-slide technical PowerPoint.
+
 ## Data policy
 
 No raw audio is stored. Dataset and derived artifact rights are separate from

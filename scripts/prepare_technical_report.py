@@ -79,6 +79,8 @@ def main():
     projection = json.loads((args.research / "projection_metrics.json").read_text())
     extra_path = Path(__file__).resolve().parents[1] / "reports/research-v2/additional_data_audit.json"
     additional = json.loads(extra_path.read_text()) if extra_path.exists() else {}
+    latency_path = args.research / "research_latency.json"
+    research_latency = json.loads(latency_path.read_text()) if latency_path.exists() else None
     payload = {
         "date": "2026-10-30", "research": report, "baseline_fit": baseline_fit,
         "baseline_test": baseline_test, "baseline_cv": reference["development_cv"],
@@ -86,6 +88,7 @@ def main():
         "baseline_latency": old["latency"], "learning_curve": curve,
         "projection": projection, "points": points,
         "additional_data": additional,
+        "research_latency": research_latency,
         "original_feature_count": 36, "research_feature_count": len(report["final"]["feature_names"]),
         "precision_definition": "true positives divided by predicted positives",
         "recall_definition": "true positives divided by actual positives",
