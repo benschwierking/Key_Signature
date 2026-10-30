@@ -27,18 +27,17 @@ This is the durable resume ledger for the key-signature classifier.
 | Interpretive analysis and notebook | implemented | LR and RF paths plus exploration notebook added |
 | Streamlit application | complete | AppTest imports/runs; regular Streamlit selected after Stlite dependency review |
 | Strict C1–C7 acceptance | blocked by measured accuracy | C1 46.15% and C2 69.23% fail; C3–C7 pass |
-| Public GitHub source release | pending | Local `gh` token requires reauthentication |
+| Public GitHub source release | complete | Public `main` pushed to `benschwierking/Key_Signature`; source-only boundary verified |
 
 ## Current checkpoint
 
 - Date: 2026-10-29 America/Los_Angeles
-- Last successful action: bounded STFT alternative rejected on validation (58.24% exact vs CQT 63.74%); its test split was not inspected
+- Last successful action: public source pushed and verified at `https://github.com/benschwierking/Key_Signature`
 - Environment: Python 3.11 virtualenv installed; ffmpeg available
-- Committed source baseline: `12e4b28` (`Build resumable key-signature classifier v1`)
+- Committed source milestones: `12e4b28` (v1 build) and `6291ad3` (acceptance diagnostics and handoff)
 - Blockers:
   - local v1: honest held-out accuracy is below C1 and C2; the bounded failure policy is exhausted
-  - public source release: GitHub CLI token is invalid and needs interactive reauthentication
-  - public data release: feature-cache redistribution rights are not documented
+  - public release acceptance: feature-cache redistribution rights are not documented, and the measured C1/C2 shortfall remains
 - Generated local artifacts (all intentionally ignored):
   - `data/features/giantsteps_features.parquet` (604 CQT rows)
   - `data/work/` (atomic per-track checkpoints)
@@ -72,11 +71,15 @@ This is the durable resume ledger for the key-signature classifier.
 | `.venv/bin/python -m eval.evaluate --criteria-only reports/metrics.json --junit reports/pytest-junit.xml` | reproduced the same C1/C2 gate failure |
 | `.venv/bin/python -m keyclf.diagnostics --alternate-training /tmp/keyclf-stft-training.json` | per-class report written; STFT rejected on validation |
 | strict pytest rerun after profile vectorization | 117 passed and 1 skipped before interruption at 14m32s; a fresh collector then blocked in stdlib `binascii` import while macOS `syspolicyd` saturated the host. An evaluator replay likewise blocked reading NumPy during import. Manual training and targeted changed-code tests had already passed; these are recorded as host contention, not passing reruns. |
+| `gh repo create benschwierking/Key_Signature --public --source=. --remote=origin ...` | public repository created after reauthenticating `benschwierking` |
+| `git push --progress -u origin main` | 61 objects / 78.33 KiB pushed; remote `main` established and verified public |
 
 ## Resume invariant
 
-Run the exact next action below. The feature extractor will reuse compatible
-checkpoints and never needs raw audio to remain on disk. Do not publish
+After the host's macOS policy contention clears, run the exact next action
+below to close the interrupted post-optimization verification. The feature
+extractor will reuse compatible checkpoints and never needs raw audio to
+remain on disk. Do not publish
 `data/`, `models/`, or `reports/` unless `DATA_PROVENANCE.md` first records a
 valid redistribution basis. The commit containing this ledger is the current
 handoff commit (`git rev-parse HEAD`).
@@ -84,5 +87,5 @@ handoff commit (`git rev-parse HEAD`).
 ## Exact next action
 
 ```bash
-cd keyclf-harness && gh auth login -h github.com --web
+cd keyclf-harness && KEYCLF_REQUIRE_IMPL=1 MPLCONFIGDIR=/tmp/keyclf-mpl .venv/bin/python -m pytest -q -rs --junitxml reports/pytest-junit.xml
 ```
