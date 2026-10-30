@@ -27,7 +27,11 @@ def load_artifact(path: str = "models/model.joblib"):
 def probability_24(estimator, vector: np.ndarray, metadata: dict) -> np.ndarray:
     """Map model probability columns to canonical key order."""
     names = metadata.get("feature_names")
-    sample = pd.DataFrame([vector], columns=names) if names else vector.reshape(1, -1)
+    sample = (
+        pd.DataFrame([vector], columns=names)[list(estimator.feature_names_in_)]
+        if names and hasattr(estimator, "feature_names_in_")
+        else vector.reshape(1, -1)
+    )
     raw = np.asarray(estimator.predict_proba(sample), dtype=float)[0]
     result = np.zeros(24, dtype=float)
     class_names = metadata.get("classes")

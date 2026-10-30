@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-from sklearn.metrics import log_loss
 
 from .baseline import KK_MAJOR, KK_MINOR
 from .keys import mode_of, tonic_of
@@ -20,12 +19,16 @@ def pearson(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.corrcoef(x, y)[0, 1])
 
 
-def _class_probability(estimator, X: np.ndarray, key: int) -> np.ndarray:
-    classes = np.asarray(estimator.classes_, dtype=int)
-    where = np.flatnonzero(classes == key)
-    if not where.size:
-        return np.zeros(len(X), dtype=float)
-    return np.asarray(estimator.predict_proba(X), dtype=float)[:, int(where[0])]
+def _probabilities_24(estimator, X: np.ndarray) -> np.ndarray:
+    raw = np.asarray(estimator.predict_proba(X), dtype=float)
+    probability = np.zeros((len(X), 24), dtype=float)
+    for column, key in enumerate(np.asarray(estimator.classes_, dtype=int)):
+        probability[:, int(key)] = raw[:, column]
+    return np.clip(probability, 1e-9, 1 - 1e-9)
+
+
+def _binary_losses(probability: np.ndarray, truth: np.ndarray) -> np.ndarray:
+    return -np.mean(truth * np.log(probability) + (1 - truth) * np.log(1 - probability), axis=0)
 
 
 def random_forest_profiles(
@@ -44,21 +47,17 @@ def random_forest_profiles(
     X = np.asarray(X_validation, dtype=float)
     y = np.asarray(y_validation, dtype=int)
     rng = np.random.default_rng(seed)
-    by_key: list[tuple[int, np.ndarray]] = []
-    for key in range(24):
-        truth = (y == key).astype(int)
-        base_probability = np.clip(_class_probability(estimator, X, key), 1e-9, 1 - 1e-9)
-        baseline = log_loss(truth, np.column_stack((1 - base_probability, base_probability)), labels=[0, 1])
-        importance = np.zeros(12, dtype=float)
-        for offset, column in enumerate(range(24, 36)):
-            losses = []
-            for _ in range(repeats):
-                shuffled = X.copy()
-                shuffled[:, column] = rng.permutation(shuffled[:, column])
-                probability = np.clip(_class_probability(estimator, shuffled, key), 1e-9, 1 - 1e-9)
-                losses.append(log_loss(truth, np.column_stack((1 - probability, probability)), labels=[0, 1]))
-            importance[offset] = float(np.mean(losses) - baseline)
-        by_key.append((key, np.roll(importance, -tonic_of(key))))
+    truth = (y[:, None] == np.arange(24)[None, :]).astype(float)
+    baseline = _binary_losses(_probabilities_24(estimator, X), truth)
+    importance = np.zeros((24, 12), dtype=float)
+    for offset, column in enumerate(range(24, 36)):
+        repeated_losses = []
+        for _ in range(repeats):
+            shuffled = X.copy()
+            shuffled[:, column] = rng.permutation(shuffled[:, column])
+            repeated_losses.append(_binary_losses(_probabilities_24(estimator, shuffled), truth))
+        importance[:, offset] = np.mean(repeated_losses, axis=0) - baseline
+    by_key = [(key, np.roll(importance[key], -tonic_of(key))) for key in range(24)]
     major = np.mean([profile for key, profile in by_key if mode_of(key) == "major"], axis=0)
     minor = np.mean([profile for key, profile in by_key if mode_of(key) == "minor"], axis=0)
     return major, minor

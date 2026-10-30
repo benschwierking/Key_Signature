@@ -15,7 +15,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, log_loss, top_k_accuracy_score
 
 from .analysis import save_profile_analysis
-from .features import DEFAULT_CONFIG, feature_names
+from .features import DEFAULT_CONFIG, FeatureConfig, feature_names
 from .keys import KEY_NAMES, parse_key
 
 RANDOM_SEED = 42
@@ -119,6 +119,7 @@ def train_model(
     model_path: str | Path = "models/model.joblib",
     report_path: str | Path = "reports/training_metrics.json",
     seed: int = RANDOM_SEED,
+    feature_config: FeatureConfig = DEFAULT_CONFIG,
 ) -> dict[str, Any]:
     """Select on validation, refit on train+validation, and save the model."""
     frame, X, y, split, names = load_training_table(feature_path)
@@ -141,11 +142,11 @@ def train_model(
         "classes": list(KEY_NAMES),
         "feature_names": names,
         "feature_config": {
-            "chroma_type": DEFAULT_CONFIG.chroma_type,
-            "hop_length": DEFAULT_CONFIG.hop_length,
-            "edge_frames": DEFAULT_CONFIG.edge_frames,
-            "sample_rate": DEFAULT_CONFIG.sample_rate,
-            "silence_top_db": DEFAULT_CONFIG.silence_top_db,
+            "chroma_type": feature_config.chroma_type,
+            "hop_length": feature_config.hop_length,
+            "edge_frames": feature_config.edge_frames,
+            "sample_rate": feature_config.sample_rate,
+            "silence_top_db": feature_config.silence_top_db,
         },
         "seed": seed,
         "splits": splits,
@@ -187,6 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", default="models/model.joblib")
     parser.add_argument("--report", default="reports/training_metrics.json")
     parser.add_argument("--seed", type=int, default=RANDOM_SEED)
+    parser.add_argument("--chroma-type", choices=["cqt", "stft"], default=DEFAULT_CONFIG.chroma_type)
     return parser
 
 
@@ -194,7 +196,13 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point for fixed-seed model selection and export."""
     args = build_parser().parse_args(argv)
     features = Path(args.features) if args.features else find_feature_file(args.features_dir)
-    report = train_model(features, args.model, args.report, seed=args.seed)
+    report = train_model(
+        features,
+        args.model,
+        args.report,
+        seed=args.seed,
+        feature_config=FeatureConfig(chroma_type=args.chroma_type),
+    )
     print(json.dumps(report["selected"], indent=2))
     return 0
 
