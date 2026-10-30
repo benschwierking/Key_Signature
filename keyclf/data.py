@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -123,9 +124,13 @@ def music21_crosscheck(label: str, parsed: int) -> None:
     """Raise when music21 disagrees with this project's canonical label parser."""
     from music21 import key as music21_key
 
-    del label  # the canonical spelling avoids music21's full-label parser ambiguity
-    tonic, mode = key_name(parsed).split()
-    analysed = music21_key.Key(tonic, mode)
+    raw = re.fullmatch(r"\s*([A-Ga-g])([#b♭♯]*)(?:\s*:?\s*(major|minor|maj|min|M|m))?\s*", label)
+    if raw is None:
+        raise ValueError(f"music21 cross-check cannot read label {label!r}")
+    letter, accidental, mode = raw.groups()
+    tonic = letter.upper() + accidental.replace("b", "-").replace("♭", "-").replace("♯", "#")
+    raw_minor = mode in {"minor", "min", "m"} or (mode is None and letter.islower())
+    analysed = music21_key.Key(tonic, "minor" if raw_minor else "major")
     expected_tonic = int(analysed.tonic.pitchClass)
     expected_mode = str(analysed.mode)
     actual_tonic = int(parsed) % 12

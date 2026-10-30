@@ -61,6 +61,37 @@ classes, predicted key, confidence, and related-key-aware top three.
 The v1 deployment target is regular Streamlit. The browser-only Stlite attempt
 and dependency limitation are recorded in [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
+## Accuracy research
+
+The opt-in research path preserves the v1 artifact and original test IDs. It
+adds harmonic/bass pitch summaries, beat accents, pitch persistence, and
+section-level distributions. Persistence is a duration proxy, and beat accents
+do not identify bar downbeats or transcribe individual notes.
+
+```bash
+python -m keyclf.research_features --workers 2
+python -m keyclf.experiments --features data/work/research_features.parquet \
+  --out reports/research-v2
+```
+
+The experiment runner uses three mode-stratified development folds and applies
+12 transpositions only inside each training fold. It ranks configurations by
+exact accuracy, top-three accuracy, and log loss. Add `--finalize --projections`
+only after fixing the experiment matrix to evaluate the selected model once
+on the original test partition and export PCA, t-SNE, and exploratory K-means
+coordinates. It records exact recall by key, macro recall, weighted recall,
+and major/minor mode performance. The final test receipt prevents silently
+evaluating a different selection in the same output directory.
+
+Copy the resulting `research_model.joblib` into `models/` to enable the
+research classifier in the upload app. The app keeps the original histogram
+for display and selects the model's feature columns in the recorded order.
+
+`scripts/prepare_technical_report.py` prepares the measured learning curve and
+presentation data. `scripts/build_technical_deck.mjs` creates an editable
+PowerPoint using the Codex presentation runtime. Generated caches, models,
+point coordinates, and slides remain under ignored work/report directories.
+
 ## Data policy
 
 No raw audio is stored. Dataset and derived artifact rights are separate from

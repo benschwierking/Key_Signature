@@ -7,9 +7,17 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from keyclf import data
 from keyclf.features import FeatureConfig, config_signature, feature_names
+
+
+def test_annotation_crosscheck_compares_the_raw_label():
+    data.music21_crosscheck("Ab major", 8)
+    data.music21_crosscheck("a", 21)
+    with pytest.raises(ValueError, match="disagrees"):
+        data.music21_crosscheck("Ab major", 20)
 
 
 def test_stratified_split_is_deterministic_and_has_all_partitions():

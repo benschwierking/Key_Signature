@@ -28,11 +28,19 @@ This is the durable resume ledger for the key-signature classifier.
 | Streamlit application | complete | AppTest imports/runs; regular Streamlit selected after Stlite dependency review |
 | Strict C1–C7 acceptance | blocked by measured accuracy | C1 46.15% and C2 69.23% fail; C3–C7 pass |
 | Public GitHub source release | complete | Public `main` pushed to `benschwierking/Key_Signature`; source-only boundary verified |
+| Accuracy research requested 2026-10-30 | running | Versioned 180-feature extraction; two-track trial and resume passed; no audio retained |
+| Technical PowerPoint requested 2026-10-30 | in preparation | Editable charts will show algorithms, split percentages, recall, projections and clustering diagnostics |
 
 ## Current checkpoint
 
-- Date: 2026-10-29 America/Los_Angeles
-- Last successful action: public source pushed and verified at `https://github.com/benschwierking/Key_Signature`
+- Date: 2026-10-30 America/Los_Angeles
+- Active operation: requested accuracy research and technical PowerPoint
+- Last successful action: audit found 511 minor / 93 major annotations; 0/15 major test tracks correct
+- Runtime recovery: Desktop cache and virtualenv contain macOS `dataless` cloud placeholders. A new local runtime under `/private/tmp/keyclf-research.1I9aUa` avoids stalled imports. The earlier attribution solely to policy-service contention was not established.
+- Research checkpoint: 200/604 new feature rows completed without failures; full extraction remains active with two workers.
+- Verification: fresh strict run passed 128 tests with one optional criterion skip. Original gate replay reproduced 46.15% exact and 69.23% top-three with C3-C7 passing. A subsequent raw-label audit change passed targeted tests.
+- Initial development CV: original reference forest 46.98% exact; transposition-augmented histogram forest 55.36%. No research test inference has occurred.
+- Additional-data metadata: 1,349 single-key candidates (429 major / 920 minor), no exact ID or MD5 overlaps, 137 ambiguous/unknown entries recorded separately. No additional audio collected.
 - Environment: Python 3.11 virtualenv installed; ffmpeg available
 - Committed source milestones: `12e4b28` (v1 build) and `6291ad3` (acceptance diagnostics and handoff)
 - Blockers:
@@ -87,5 +95,5 @@ handoff commit (`git rev-parse HEAD`).
 ## Exact next action
 
 ```bash
-cd keyclf-harness && KEYCLF_REQUIRE_IMPL=1 MPLCONFIGDIR=/tmp/keyclf-mpl .venv/bin/python -m pytest -q -rs --junitxml reports/pytest-junit.xml
+cd keyclf-harness && /private/tmp/keyclf-research.1I9aUa/.venv/bin/python -m keyclf.research_features --annotations /private/tmp/keyclf-research.1I9aUa/annotations --work /private/tmp/keyclf-research.1I9aUa/checkpoints --output /private/tmp/keyclf-research.1I9aUa/research_features.parquet --workers 2
 ```

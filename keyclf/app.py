@@ -41,6 +41,19 @@ def probability_24(estimator, vector: np.ndarray, metadata: dict) -> np.ndarray:
     return result
 
 
+def prepare_input(path: str | Path, metadata: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Return display features and the artifact's correctly ordered model input."""
+    if metadata.get("research_version"):
+        from keyclf.research_features import BLOCKS, extract_research_features
+
+        full, _ = extract_research_features(path)
+        names = [f"{block}_{pc}" for block in BLOCKS for pc in range(12)]
+        columns = [names.index(name) for name in metadata["feature_names"]]
+        return full[:36], full[columns]
+    vector = extract_features(path, FeatureConfig(**metadata.get("feature_config", {})))
+    return vector, vector
+
+
 def render_result(vector: np.ndarray, probability: np.ndarray) -> None:
     """Render the histogram, edge bins, and related-aware top predictions."""
     best = int(probability.argmax())
@@ -65,23 +78,26 @@ def main() -> None:
     """Run the Streamlit application."""
     st.set_page_config(page_title="Key Signature Classifier", page_icon="🎼")
     st.title("Key Signature Classifier")
-    st.caption("Chroma-based 24-class model with Krumhansl–Schmuckler interpretation")
-    model_path = Path("models/model.joblib")
-    if not model_path.exists():
+    st.caption("Audio key prediction from pitch-class features")
+    available = {label: Path(filename) for label, filename in (
+        ("Original", "models/model.joblib"), ("Research", "models/research_model.joblib")
+    ) if Path(filename).exists()}
+    if not available:
         st.error("Train the model first with `python -m keyclf.train`.")
         return
+    choice = st.selectbox("Classifier", list(available), index=len(available) - 1) if len(available) > 1 else next(iter(available))
+    model_path = available[choice]
     upload = st.file_uploader("Upload a song", type=["mp3", "mp4", "wav"])
     if upload is None:
         return
     estimator, metadata = load_artifact(str(model_path))
-    feature_config = FeatureConfig(**metadata.get("feature_config", {}))
     suffix = Path(upload.name).suffix.lower() or ".audio"
     with tempfile.NamedTemporaryFile(suffix=suffix) as temporary:
         temporary.write(upload.getbuffer())
         temporary.flush()
         with st.spinner("Extracting chroma and predicting the key…"):
-            vector = extract_features(temporary.name, feature_config)
-            probability = probability_24(estimator, vector, metadata)
+            vector, model_input = prepare_input(temporary.name, metadata)
+            probability = probability_24(estimator, model_input, metadata)
     render_result(vector, probability)
 
 

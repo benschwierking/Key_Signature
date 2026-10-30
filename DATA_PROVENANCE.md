@@ -26,3 +26,20 @@ Until then, GitHub runs the harness self-tests on every push but does not claim
 the real-data acceptance job passed. That job becomes active when an authorized
 `KEYCLF_FEATURES_URL` is configured or `KEYCLF_FEATURES_COMMITTED=1` explicitly
 records that the committed cache has been cleared for publication.
+
+## Additional research metadata (2026-10-30)
+
+The research audit also inspected the upstream
+[GiantSteps-MTG key annotations](https://github.com/GiantSteps/giantsteps-mtg-key-dataset).
+The current snapshot has 1,486 annotation files. The audit identified 1,349
+single-key candidates and recorded 137 ambiguous/unknown annotations separately.
+It identified 429 major-key candidates after checking exact track IDs and MD5
+records against the original 604 tracks. These checks do not establish the
+absence of remixes, near duplicates, or artist overlap.
+
+This audit collected metadata only. No additional recordings have entered the
+model, and this project does not grant redistribution rights over these
+annotations or any corresponding audio. Acquisition manifests, derived
+features, point coordinates, trained artifacts, and the technical presentation
+remain local under ignored data/report directories until their publication
+basis is documented.

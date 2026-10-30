@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from keyclf.app import probability_24
 from keyclf.keys import KEY_NAMES, is_related, parse_key
 
 
@@ -16,7 +15,20 @@ class _Estimator:
 
 
 def test_app_probability_mapping_and_relative_highlight_relation():
+    from keyclf.app import probability_24
+
     result = probability_24(_Estimator(), np.zeros(36), {"classes": list(KEY_NAMES)})
     assert result.shape == (24,) and result.argmax() == 21 and np.isclose(result.sum(), 1.0)
     assert is_related(parse_key("A minor"), parse_key("C major"))
     assert not is_related(parse_key("A minor"), parse_key("C minor"))
+
+
+def test_research_input_preserves_the_display_vector_and_model_order(monkeypatch):
+    from keyclf import research_features
+    from keyclf.app import prepare_input
+
+    full = np.arange(len(research_features.BLOCKS) * 12, dtype=float)
+    monkeypatch.setattr(research_features, "extract_research_features", lambda _path: (full, {}))
+    display, selected = prepare_input("unused.wav", {"research_version": "v2.1", "feature_names": ["bass_3", "hist_0"]})
+    assert np.array_equal(display, full[:36])
+    assert np.array_equal(selected, [51, 24])
