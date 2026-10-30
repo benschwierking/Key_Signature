@@ -34,7 +34,7 @@ This is the durable resume ledger for the key-signature classifier.
 ## Current checkpoint
 
 - Date: 2026-10-30 America/Los_Angeles
-- Active operation: final source handoff; requested research batch and PowerPoint complete
+- Active operation: none; requested research batch, PowerPoint and source handoff complete
 - Last successful action: exported and validated `reports/research-v2/presentation/Key_Signature_Technical_Review.pptx` (19 slides, 8 native charts, 8 native tables); visually inspected all slides, including final revised previews
 - Runtime recovery: Desktop cache and virtualenv contain macOS `dataless` cloud placeholders. A new local runtime under `/private/tmp/keyclf-research.1I9aUa` avoids stalled imports. The earlier attribution solely to policy-service contention was not established.
 - Research checkpoint: 604/604 new feature rows complete, zero failures, two checkpoint resumes, no audio retained. SHA256 `a11c602fab1edb3f7aeff716d518b6db657a2574b2aef2bb4284a2edf45a6f15`.
@@ -50,7 +50,7 @@ This is the durable resume ledger for the key-signature classifier.
 - Additional-data metadata: 1,349 single-key candidates (429 major / 920 minor), no exact ID or MD5 overlaps, 137 ambiguous/unknown entries recorded separately. No additional audio collected.
 - Source milestones: `c6e6d62` added the research pipeline; `d7fb278` fixed cold synthetic self-tests. The harness stand-in uses FFT/FFmpeg to avoid timing first-time numba compilation; real C3 still times the actual extractor with the unchanged strict limit and no warm-up.
 - Upload verification: synthetic WAV, MP3, MP4 decoding and Streamlit top-three/relative-key rendering passed all four smoke tests. The histogram-only research app fast path has its own regression test.
-- GitHub harness self-tests passed at source commit `d7fb278` (run `41124294169`). Full hosted acceptance remains intentionally pending an authorized cache. The commit containing this ledger is the handoff commit (`git rev-parse HEAD`).
+- Final source verification: GitHub harness self-tests passed at `2764175b4e80eb02e9accbb503307dbe2c0824e1` (run [`41126521319`](https://github.com/benschwierking/Key_Signature/actions/runs/41126521319)). Full hosted acceptance remains intentionally pending an authorized cache. The following ledger-only handoff commit does not change tested code; resolve it with `git rev-parse HEAD`.
 - Environment: Python 3.11 virtualenv installed; ffmpeg available
 - Committed source milestones: `12e4b28` (v1 build) and `6291ad3` (acceptance diagnostics and handoff)
 - Blockers:
@@ -103,6 +103,7 @@ This is the durable resume ledger for the key-signature classifier.
 | `python scripts/measure_research_latency.py --model ... --out .../research_latency.json` | actual selected-model path, no warm-up, maximum 1.145 seconds; temporary synthetic audio deleted |
 | `scripts/audit_additional_data.py` | 1,349 metadata candidates, including 429 major; 137 ambiguous/unknown entries kept separate; no extra audio collected or used for training |
 | `scripts/prepare_technical_report.py` and `scripts/build_technical_deck.mjs` | measured learning curve and 19-slide editable PowerPoint exported; first-party re-import, native chart validation, package and layout checks passed |
+| `git push origin main` and `gh run watch 41126521319 --exit-status` | final source commit `2764175` pushed; GitHub harness self-test passed in 1m1s; full hosted acceptance skipped by the documented data-rights gate |
 
 ## Resume invariant
 
