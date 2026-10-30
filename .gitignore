@@ -1,0 +1,23 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Upstream and derived data are local until redistribution rights are clear.
+data/annotations/
+data/work/
+data/features/*
+!data/features/.gitkeep
+
+# Trained artifacts and generated reports.
+models/*
+!models/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# Streamlit and notebook runtime files.
+.streamlit/secrets.toml
+.ipynb_checkpoints/

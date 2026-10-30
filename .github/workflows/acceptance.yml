@@ -1,0 +1,164 @@
+# keyclf acceptance gate — spec: specs/key-signature-classifier-spec.md
+#
+# Fails the build if ANY spec §9 acceptance criterion is missed, or if pytest fails
+# (spec §10 line 89: "Code passes pytest").
+#
+# Data policy: spec §6 / §12 forbid storing raw audio ("No raw audio stored").
+# CI therefore NEVER downloads the ~850MB GiantSteps audio. It needs only the small
+# cached feature file under data/features/ (spec §12), obtained in this order:
+#   1. committed to the repo (spec §12 allows "gitignored as needed"; the cache is small), or
+#   2. downloaded from the URL in repository variable KEYCLF_FEATURES_URL
+#      (e.g. a GitHub Release asset), saved as data/features/$KEYCLF_FEATURES_FILENAME.
+# The model is rebuilt from that cache with the single train command (spec §10 line 86,
+# §13 `python -m keyclf.train`; §12 "training never re-fetches audio").
+# Latency (spec §9 line 79) is timed on a generated synthetic 120 s MP3 by default,
+# or on a real track streamed to a temp file and deleted (spec §6) if
+# repository variable KEYCLF_LATENCY_URL is set.
+name: acceptance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      retrain:
+        description: "Run `python -m keyclf.train` before evaluating (spec §10 single train command)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"   # spec §5: Python 3.11+
+  MPLBACKEND: Agg
+
+jobs:
+  harness-selftest:
+    # Judge-the-judge: key relations, K-S baseline, metrics, criteria gate, synthetic smoke run.
+    # Needs no keyclf implementation; must always be green.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: 'Install ffmpeg (spec §14 "System: ffmpeg for MP3/MP4 decoding")'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install harness deps
+        run: python -m pip install -r requirements-harness.txt
+      - name: Harness self-tests
+        run: python -m pytest -m harness -q
+
+  acceptance:
+    needs: harness-selftest
+    # Public source pushes cannot legally carry the derived cache until its
+    # redistribution basis is documented. Keep the judge self-tests active on
+    # every push, and enable the real-data gate explicitly via an authorized
+    # cache URL, a cleared committed cache, or a manual dispatch.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.KEYCLF_FEATURES_URL != '' || vars.KEYCLF_FEATURES_COMMITTED == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      KEYCLF_REQUIRE_IMPL: "1"   # missing keyclf / artifacts => FAIL, not skip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: 'Install ffmpeg (spec §14 "System: ffmpeg for MP3/MP4 decoding")'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install harness deps + package (spec §13 `pip install -e .`)
+        run: |
+          python -m pip install -r requirements-harness.txt
+          if [ -f pyproject.toml ] || [ -f setup.py ]; then python -m pip install -e .; else
+            echo '::warning::no pyproject.toml/setup.py yet (spec §13 expects pip install -e .)'; fi
+
+      - name: Provide cached feature file (spec §12; no raw audio per §6/§12)
+        id: features
+        continue-on-error: true
+        env:
+          FEATURES_URL: ${{ vars.KEYCLF_FEATURES_URL }}
+          FEATURES_NAME: ${{ vars.KEYCLF_FEATURES_FILENAME || 'features.parquet' }}
+        run: |
+          shopt -s nullglob
+          files=(data/features/*.parquet data/features/*.csv)
+          if [ ${#files[@]} -ge 1 ]; then
+            echo "using committed feature cache: ${files[*]}"
+          elif [ -n "$FEATURES_URL" ]; then
+            mkdir -p data/features
+            curl -fsSL --retry 3 "$FEATURES_URL" -o "data/features/$FEATURES_NAME"
+            ls -l data/features
+          else
+            echo "::error::No feature cache in data/features/ and vars.KEYCLF_FEATURES_URL unset. Spec §12: CI evaluates from the cached feature file, never raw audio."
+            exit 1
+          fi
+
+      - name: Train — single command, fixed seed (spec §10 line 86, §13)
+        id: train
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.retrain }}
+        continue-on-error: true
+        run: python -m keyclf.train
+
+      - name: pytest (spec §9 line 81 feature unit tests; §10 rubric)
+        id: pytest
+        continue-on-error: true
+        run: |
+          mkdir -p reports
+          python -m pytest -q -rs --junitxml=reports/pytest-junit.xml
+
+      - name: Evaluate on held-out test split (spec §9, §10)
+        id: evaluate
+        continue-on-error: true
+        env:
+          LATENCY_URL: ${{ vars.KEYCLF_LATENCY_URL }}
+        run: |
+          extra=()
+          if [ -n "$LATENCY_URL" ]; then extra+=(--latency-url "$LATENCY_URL"); fi
+          python -m eval.evaluate --model models/model.joblib --features-dir data/features \
+            --out reports --junit reports/pytest-junit.xml "${extra[@]}"
+
+      - name: Criteria check — PASS/FAIL per spec §9 criterion
+        id: criteria
+        if: always()
+        continue-on-error: true
+        run: |
+          status=0
+          python -m eval.evaluate --criteria-only reports/metrics.json --junit reports/pytest-junit.xml || status=$?
+          [ -f reports/summary.md ] && cat reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Upload metrics + confusion matrices
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyclf-acceptance-reports
+          path: |
+            reports/metrics.json
+            reports/summary.md
+            reports/confusion_matrix_*.png
+            reports/confusion_matrix_*.csv
+            reports/learned_vs_ks_profiles.png
+            reports/pytest-junit.xml
+          if-no-files-found: warn
+
+      - name: Gate — fail build if any spec §9 criterion (or pytest) failed
+        if: always()
+        run: |
+          echo "features=${{ steps.features.outcome }} train=${{ steps.train.outcome }} pytest=${{ steps.pytest.outcome }} evaluate=${{ steps.evaluate.outcome }} criteria=${{ steps.criteria.outcome }}"
+          fail=0
+          for o in "${{ steps.features.outcome }}" "${{ steps.pytest.outcome }}" "${{ steps.evaluate.outcome }}" "${{ steps.criteria.outcome }}"; do
+            [ "$o" = "success" ] || fail=1
+          done
+          case "${{ steps.train.outcome }}" in success|skipped) ;; *) fail=1 ;; esac
+          exit $fail

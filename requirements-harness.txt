@@ -1,0 +1,14 @@
+# Acceptance-harness dependencies (spec §5 / §14 stack + what the harness itself needs).
+# Versions verified on 2026-10-29 with Python 3.11: numpy 2.4.6, scipy 1.17.1, librosa 0.11.0,
+# scikit-learn 1.9.1, joblib 1.6.0, pandas 3.1.0, pyarrow 26.0.0, matplotlib 3.11.2, pytest 9.2.0, PyYAML 6.0.3.
+numpy
+scipy
+librosa
+soundfile
+scikit-learn
+joblib
+pandas
+pyarrow        # Parquet feature cache (spec §12 "Parquet/CSV")
+matplotlib     # confusion-matrix + profile plots (spec §5)
+pytest
+pyyaml         # workflow self-test
